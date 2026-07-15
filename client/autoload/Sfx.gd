@@ -24,7 +24,7 @@ func _ready() -> void:
 	_bank["defeat"] = _defeat()
 	_bank["engine"] = _engine_loop()
 
-	for i in 10:
+	for i in 14:
 		var p := AudioStreamPlayer3D.new()
 		p.max_distance = 900.0
 		p.unit_size = 60.0
@@ -32,7 +32,7 @@ func _ready() -> void:
 		add_child(p)
 		_pool.append(p)
 
-	for i in 4:
+	for i in 7:
 		var p := AudioStreamPlayer.new()
 		add_child(p)
 		_flat.append(p)

@@ -61,10 +61,10 @@ func _ready() -> void:
 
 	_mat_tracer = StandardMaterial3D.new()
 	_mat_tracer.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-	_mat_tracer.albedo_color = Color(1.0, 0.86, 0.42)
+	_mat_tracer.albedo_color = Color(1.0, 0.93, 0.62)
 	_mat_tracer.emission_enabled = true
 	_mat_tracer.emission = Color(1.0, 0.78, 0.3)
-	_mat_tracer.emission_energy_multiplier = 2.0
+	_mat_tracer.emission_energy_multiplier = 4.5
 
 	_mat_shell = StandardMaterial3D.new()
 	_mat_shell.albedo_color = Color(0.15, 0.15, 0.16)
@@ -79,6 +79,7 @@ func _ready() -> void:
 	GameState.flak_burst.connect(_on_flak_burst)
 	GameState.hit_marker.connect(_on_hit)
 	GameState.death.connect(_on_death)
+	GameState.shot_fired.connect(_on_shot)
 
 
 # --- building ------------------------------------------------------------
@@ -354,6 +355,17 @@ func _make_plane(col: Color) -> Node3D:
 
 # --- effects -------------------------------------------------------------
 
+## Every round leaving the barrel. Without this the guns are silent and, from a
+## chase camera, invisible — you cannot tell you're shooting at all.
+func _on_shot(pid: int, pos: Vector3) -> void:
+	if pid == GameState.you:
+		# Your own guns are in your lap, not out in the world.
+		Sfx.play("gun", -9.0)
+	else:
+		Sfx.play_at("gun", pos, -5.0)
+	_spawn_burst(pos, 3.4, 0.05, Color(1.0, 0.88, 0.45, 0.95))
+
+
 func _on_hit(pos: Vector3) -> void:
 	Sfx.play_at("hit", pos, -4.0)
 	_spawn_burst(pos, 7.0, 0.22, Color(1.0, 0.85, 0.4, 0.9))
@@ -424,7 +436,7 @@ func _sync_pool(pool: Array, want: int, radius: float, mat: Material) -> void:
 			mi.mesh = sm
 		else:
 			var bm := BoxMesh.new()
-			bm.size = Vector3(0.4, 0.4, 4.5)
+			bm.size = Vector3(0.55, 0.55, 18.0)
 			mi.mesh = bm
 		mi.material_override = mat
 		mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
