@@ -42,6 +42,7 @@ var _acked := false
 
 func _ready() -> void:
 	_build_ui()
+	_add_mouse_fire()
 	Net.message.connect(GameState.on_message)
 	Net.opened.connect(func(): Net.send({"t": "queue"}))
 	Net.closed.connect(_on_closed)
@@ -50,6 +51,20 @@ func _ready() -> void:
 	GameState.match_ended.connect(_on_end)
 	GameState.room_closed.connect(_on_room_closed)
 	_show("menu")
+
+
+## SPACE is Godot's default ui_accept, so any Control still holding focus eats it,
+## and browsers like to claim it too. A mouse button has neither problem — and
+## clicking to shoot is what people try first anyway.
+func _add_mouse_fire() -> void:
+	if not InputMap.has_action("fire"):
+		InputMap.add_action("fire")
+	for e in InputMap.action_get_events("fire"):
+		if e is InputEventMouseButton:
+			return
+	var mb := InputEventMouseButton.new()
+	mb.button_index = MOUSE_BUTTON_LEFT
+	InputMap.action_add_event("fire", mb)
 
 
 # --- input ---------------------------------------------------------------
@@ -121,6 +136,9 @@ func _on_queued(waiting: int, need: int) -> void:
 func _on_live() -> void:
 	_wait = 0.0
 	_acked = true
+	# The button you clicked to get here still has keyboard focus, and a focused
+	# Button consumes SPACE. Let it go before anyone reaches for the trigger.
+	get_viewport().gui_release_focus()
 	_throttle = 0.75
 	_last_hp = 100
 	_flash = 0.0
@@ -287,7 +305,7 @@ func _build_ui() -> void:
 	_button(col, "II  ·  SAVE THE CITY  —  not yet flying", false)
 
 	col.add_child(_spacer(20))
-	var help := _label(col, "W / S  nose down / up      A / D  roll      Q / E  rudder\nSHIFT / CTRL  throttle      SPACE  guns\n\nThe castle guns fire at anything with wings. That includes you.", 13, Color("#8d9179"))
+	var help := _label(col, "W / S  nose down / up      A / D  roll      Q / E  rudder\nSHIFT / CTRL  throttle      SPACE or LEFT CLICK  guns\n\nThe castle guns fire at anything with wings. That includes you.", 13, Color("#8d9179"))
 	help.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 
 	# ---- queue ----
@@ -411,10 +429,14 @@ func _spacer(h: int) -> Control:
 	return s
 
 
-## Gunsight and the off-screen bandit arrow. Drawn rather than built from nodes
-## because both need to move every frame.
+## Gunsight, the bandit box, and the bearing strip along the bottom. Drawn rather
+## than built from nodes because all of it moves every frame.
 class Marks:
 	extends Control
+
+	func _ctext(font: Font, at: Vector2, txt: String, fs: int, col: Color) -> void:
+		var w := font.get_string_size(txt, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x
+		draw_string(font, at - Vector2(w * 0.5, 0.0), txt, HORIZONTAL_ALIGNMENT_LEFT, -1, fs, col)
 
 	func _draw() -> void:
 		if GameState.you < 0 or not GameState.live:
@@ -425,6 +447,7 @@ class Marks:
 
 		var c := size * 0.5
 		var ink := Color(0.85, 0.88, 0.72, 0.85)
+		var font := ThemeDB.fallback_font
 
 		# Gunsight.
 		draw_arc(c, 15.0, 0.0, TAU, 28, ink, 1.5)
@@ -434,39 +457,89 @@ class Marks:
 		draw_line(c + Vector2(0, 8), c + Vector2(0, 26), ink, 1.5)
 		draw_circle(c, 1.6, ink)
 
-		var foe: Dictionary = GameState.foe()
-		if foe.is_empty() or not foe.get("alive", false) or not foe.get("spawned", false):
-			return
-		var world = get_node_or_null("/root/Main/World")
-		if world == null or world.cam == null:
-			return
-		var cam: Camera3D = world.cam
-		var fp: Vector3 = foe.pos
-		var behind := cam.is_position_behind(fp)
-		var sp := cam.unproject_position(fp)
-		var on_screen := not behind and Rect2(Vector2.ZERO, size).grow(-40.0).has_point(sp)
+		# Until the first round goes out, say how. Ammo is the state — no flag needed.
+		if int(me.get("ammo", 0)) >= GameState.ammo_max:
+			_ctext(font, c + Vector2(0, 54), "SPACE or LEFT CLICK to fire", 13,
+				Color(0.85, 0.88, 0.72, 0.6))
 
+		var foe: Dictionary = GameState.foe()
+		var world = get_node_or_null("/root/Main/World")
 		var red := Color(0.91, 0.34, 0.25, 0.95)
-		if on_screen:
-			# Box the bandit so you can keep sight of him in a turning fight.
-			var d: float = me.pos.distance_to(fp)
-			var r: float = clampf(1400.0 / maxf(d, 40.0), 9.0, 60.0)
-			var rect := Rect2(sp - Vector2(r, r), Vector2(r * 2, r * 2))
-			draw_rect(rect, red, false, 1.6)
-			var txt := "%d" % int(d)
-			draw_string(ThemeDB.fallback_font, sp + Vector2(r + 5, 4), txt,
-				HORIZONTAL_ALIGNMENT_LEFT, -1, 12, red)
-		else:
-			# Off screen: point at him from the edge.
-			var dir := (sp - c)
-			if behind:
-				dir = -dir
-			if dir.length() < 0.001:
-				dir = Vector2(0, -1)
-			dir = dir.normalized()
-			var edge: Vector2 = c + dir * (minf(size.x, size.y) * 0.5 - 46.0)
-			var perp := Vector2(-dir.y, dir.x)
-			var pts := PackedVector2Array([
-				edge + dir * 13.0, edge - dir * 6.0 + perp * 9.0, edge - dir * 6.0 - perp * 9.0,
-			])
-			draw_colored_polygon(pts, red)
+
+		if not foe.is_empty() and foe.get("alive", false) and foe.get("spawned", false) \
+				and world != null and world.cam != null:
+			var cam: Camera3D = world.cam
+			var fp: Vector3 = foe.pos
+			var behind := cam.is_position_behind(fp)
+			var sp := cam.unproject_position(fp)
+			var on_screen := not behind and Rect2(Vector2.ZERO, size).grow(-40.0).has_point(sp)
+
+			if on_screen:
+				var d: float = me.pos.distance_to(fp)
+				var r: float = clampf(1400.0 / maxf(d, 40.0), 9.0, 60.0)
+				draw_rect(Rect2(sp - Vector2(r, r), Vector2(r * 2, r * 2)), red, false, 1.6)
+				draw_string(font, sp + Vector2(r + 5, 4), "%d" % int(d),
+					HORIZONTAL_ALIGNMENT_LEFT, -1, 12, red)
+			else:
+				var dir := sp - c
+				if behind:
+					dir = -dir
+				if dir.length() < 0.001:
+					dir = Vector2(0, -1)
+				dir = dir.normalized()
+				var edge: Vector2 = c + dir * (minf(size.x, size.y) * 0.5 - 46.0)
+				var perp := Vector2(-dir.y, dir.x)
+				draw_colored_polygon(PackedVector2Array([
+					edge + dir * 13.0, edge - dir * 6.0 + perp * 9.0, edge - dir * 6.0 - perp * 9.0,
+				]), red)
+
+		_strip(me, foe, font)
+
+	## Where he is, in clock code. A chase camera shows you nothing behind the
+	## tail, and that is exactly where a bot who's winning will be.
+	func _strip(me: Dictionary, foe: Dictionary, font: Font) -> void:
+		var w: float = minf(size.x - 140.0, 520.0)
+		var cx: float = size.x * 0.5
+		var y: float = size.y - 56.0
+		var left: float = cx - w * 0.5
+		var dim := Color(0.85, 0.88, 0.72, 0.30)
+		var lab := Color(0.85, 0.88, 0.72, 0.55)
+
+		draw_line(Vector2(left, y), Vector2(left + w, y), dim, 2.0)
+		for m in [[-1.0, "6"], [-0.5, "9"], [0.0, "12"], [0.5, "3"], [1.0, "6"]]:
+			var b: float = m[0]
+			var tx: float = left + (b * 0.5 + 0.5) * w
+			var h: float = 10.0 if b == 0.0 else 6.0
+			draw_line(Vector2(tx, y - h), Vector2(tx, y + h), dim, 1.5)
+			_ctext(font, Vector2(tx, y + 24.0), str(m[1]), 11, lab)
+
+		if foe.is_empty() or not foe.get("alive", false) or not foe.get("spawned", false):
+			_ctext(font, Vector2(cx, y - 26.0), "NO CONTACT", 12, lab)
+			return
+
+		# Bearing on the horizontal plane, so rolling doesn't spin the strip.
+		var f: Vector3 = me.q * Vector3(0, 0, -1)
+		var to: Vector3 = foe.pos - me.pos
+		var flat_f := Vector2(f.x, f.z)
+		var flat_t := Vector2(to.x, to.z)
+		if flat_f.length() < 0.001 or flat_t.length() < 0.001:
+			return
+		var bearing: float = flat_f.angle_to(flat_t)          # + = off to your right
+		var t: float = clampf(bearing / PI, -1.0, 1.0)
+		var mx: float = left + (t * 0.5 + 0.5) * w
+		var dist: float = to.length()
+		var col := Color(0.91, 0.34, 0.25, 0.95)
+
+		draw_colored_polygon(PackedVector2Array([
+			Vector2(mx, y - 9.0), Vector2(mx - 7.0, y - 21.0), Vector2(mx + 7.0, y - 21.0),
+		]), col)
+		_ctext(font, Vector2(mx, y - 27.0), "%d" % int(dist), 12, col)
+
+		var dy: float = float(foe.pos.y) - float(me.pos.y)
+		var tag := "level"
+		if absf(dy) > 25.0:
+			tag = ("above  +%d" % int(dy)) if dy > 0.0 else ("below  -%d" % int(-dy))
+		_ctext(font, Vector2(cx, y + 40.0), tag, 11, lab)
+
+		if absf(bearing) > 2.36:
+			_ctext(font, Vector2(cx, y - 50.0), "CHECK SIX", 18, col)
