@@ -1,0 +1,220 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Airman — Save the Castle</title>
+<meta name="description" content="Two planes, one island, five hundred rounds. Be the one still flying.">
+<meta name="theme-color" content="#2f3327">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' fill='%232f3327'/><path d='M16 5l2 9 9 2-9 2-2 9-2-9-9-2 9-2z' fill='%23d9cfb1'/></svg>">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Black+Ops+One&family=Special+Elite&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --room:#2f3327; --room-2:#23271c; --card:#d9cfb1; --card-2:#cec2a0;
+    --edge:#b3a681; --ink:#221f19; --soft:#5d5744; --stamp:#a8352b; --grease:#2b5f7e;
+    --shadow:rgba(0,0,0,.45);
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html{-webkit-text-size-adjust:100%}
+  body{
+    min-height:100vh; background:var(--room);
+    background-image:
+      radial-gradient(120% 90% at 50% 0%, rgba(255,255,255,.07), transparent 60%),
+      radial-gradient(140% 120% at 50% 110%, rgba(0,0,0,.55), transparent 55%);
+    color:var(--card);
+    font-family:"Special Elite",Courier,monospace;
+    display:flex; align-items:center; justify-content:center;
+    padding:24px 16px; overflow-x:hidden;
+  }
+  .wrap{width:100%;max-width:940px}
+
+  /* ---- the dossier ---- */
+  .card{
+    position:relative; background:var(--card); color:var(--ink);
+    border:1px solid var(--edge); border-radius:2px;
+    box-shadow:0 26px 60px -18px var(--shadow), 0 2px 0 rgba(255,255,255,.25) inset;
+    transform:rotate(-.5deg);
+    padding:clamp(20px,4vw,38px);
+    animation:drop .5s cubic-bezier(.2,.9,.3,1) both;
+  }
+  @keyframes drop{from{opacity:0;transform:rotate(-2.4deg) translateY(-14px)}to{opacity:1;transform:rotate(-.5deg)}}
+  .card::after{ /* punched filing holes down the left edge */
+    content:""; position:absolute; left:11px; top:34px; bottom:34px; width:9px;
+    background:radial-gradient(circle at 50% 12px, var(--room) 4.5px, transparent 5px) repeat-y;
+    background-size:9px 58px; opacity:.5; pointer-events:none;
+  }
+
+  .strip{
+    display:flex; justify-content:space-between; align-items:baseline; gap:12px;
+    border-bottom:2px solid var(--ink); padding-bottom:8px; margin-bottom:22px;
+    font-size:11px; letter-spacing:.22em; text-transform:uppercase; color:var(--soft);
+  }
+  .strip b{color:var(--stamp); letter-spacing:.22em}
+
+  .top{display:grid; grid-template-columns:1.15fr .85fr; gap:clamp(18px,3vw,34px); align-items:center}
+  @media(max-width:720px){ .top{grid-template-columns:1fr; gap:20px} }
+
+  .mark{
+    font-family:"Black Ops One",Impact,sans-serif; font-weight:400;
+    font-size:clamp(46px,10vw,86px); line-height:.88; letter-spacing:.03em;
+    color:var(--ink); text-transform:uppercase;
+  }
+  .mission{
+    margin-top:10px; font-size:clamp(13px,2.2vw,15px); letter-spacing:.13em;
+    text-transform:uppercase; color:var(--stamp); border-left:3px solid var(--stamp); padding-left:9px;
+  }
+  .blurb{margin-top:16px; font-size:15px; line-height:1.65; color:var(--soft); max-width:38ch}
+
+  /* ---- the map: grease pencil on the briefing sheet ---- */
+  .map{width:100%; height:auto; display:block}
+  .map .sea{fill:rgba(43,95,126,.10)}
+  .map .land{fill:#bcae82; stroke:#514c3c; stroke-width:1.6}
+  .map .hi{fill:none; stroke:#514c3c; stroke-width:1; opacity:.45}
+  .map .ring{fill:none; stroke:var(--grease); stroke-width:2.6; stroke-linecap:round; opacity:.9}
+  .map .path{fill:none; stroke:var(--stamp); stroke-width:1.5; stroke-dasharray:5 4; opacity:.8}
+  .map .keep{fill:var(--ink)}
+  .map text{font-family:"Special Elite",monospace; font-size:9px; fill:var(--grease); letter-spacing:.1em}
+
+  /* ---- briefing rows: a real dossier lists its facts ---- */
+  .rows{margin:26px 0 0; border-top:1px dashed var(--edge); padding-top:16px}
+  .row{display:flex; align-items:baseline; gap:8px; padding:6px 0; font-size:14px}
+  .row dt{color:var(--soft); text-transform:uppercase; letter-spacing:.1em; font-size:11px; white-space:nowrap}
+  .row .dots{flex:1; border-bottom:1px dotted var(--edge); transform:translateY(-3px)}
+  .row dd{color:var(--ink); font-size:14px; text-align:right}
+
+  /* ---- action ---- */
+  .act{margin-top:26px; display:flex; flex-wrap:wrap; align-items:center; gap:14px}
+  .btn{
+    display:inline-flex; align-items:center; gap:11px; cursor:pointer;
+    background:var(--ink); color:var(--card); border:0; border-radius:2px;
+    padding:14px 20px; font-family:"Special Elite",monospace; font-size:15px;
+    letter-spacing:.04em; text-decoration:none;
+    box-shadow:0 3px 0 #0d0c09; transition:transform .12s, box-shadow .12s;
+  }
+  .btn:hover{transform:translateY(-1px); box-shadow:0 4px 0 #0d0c09}
+  .btn:active{transform:translateY(2px); box-shadow:0 1px 0 #0d0c09}
+  .btn:focus-visible{outline:3px solid var(--grease); outline-offset:3px}
+  .btn svg{width:18px;height:18px;background:#fff;border-radius:2px;padding:1px}
+  .note{font-size:12px;color:var(--soft)}
+
+  /* ---- the signature moment: the stamp ---- */
+  .stamp{
+    position:absolute; inset:0; margin:auto; width:min(78%,430px); height:150px;
+    display:grid; place-items:center; pointer-events:none; opacity:0; z-index:5;
+  }
+  .stamp span{
+    font-family:"Black Ops One",Impact,sans-serif; font-size:clamp(20px,4.4vw,36px);
+    letter-spacing:.06em; color:var(--stamp); border:5px solid var(--stamp);
+    border-radius:5px; padding:12px 22px; text-align:center; line-height:1.05;
+    transform:rotate(-9deg); opacity:.88;
+    box-shadow:0 0 0 2px rgba(168,53,43,.25) inset;
+    -webkit-mask-image:radial-gradient(circle at 30% 20%, #000 60%, rgba(0,0,0,.72) 100%);
+            mask-image:radial-gradient(circle at 30% 20%, #000 60%, rgba(0,0,0,.72) 100%);
+  }
+  .stamping .stamp{animation:slam .5s cubic-bezier(.3,1.6,.4,1) forwards}
+  .stamping .card{animation:jolt .5s ease-out}
+  @keyframes slam{
+    0%{opacity:0; transform:scale(2.6) rotate(6deg)}
+    58%{opacity:1; transform:scale(.94) rotate(0deg)}
+    72%{transform:scale(1.04) rotate(0deg)}
+    100%{opacity:1; transform:scale(1) rotate(0deg)}
+  }
+  @keyframes jolt{0%,100%{transform:rotate(-.5deg)} 60%{transform:rotate(-.5deg) translateY(3px)} 70%{transform:rotate(-.5deg) translateY(-1px)}}
+
+  /* ---- mission list: a real sequence, so it earns its numbers ---- */
+  .missions{
+    margin-top:22px; display:flex; flex-wrap:wrap; gap:10px 22px; align-items:center;
+    font-size:12px; letter-spacing:.12em; text-transform:uppercase; color:#8d9179;
+  }
+  .missions b{color:var(--card); font-weight:400}
+  .missions span{opacity:.55}
+  footer{margin-top:16px; font-size:11px; color:#767a63; letter-spacing:.08em}
+
+  @media(prefers-reduced-motion:reduce){
+    *{animation:none !important; transition:none !important}
+    .stamping .stamp{opacity:1}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <main class="card" id="card">
+    <div class="strip"><span><b>Restricted</b></span><span>Operations / Air</span></div>
+
+    <div class="top">
+      <div>
+        <h1 class="mark">Airman</h1>
+        <p class="mission">Mission I — Save the Castle</p>
+        <p class="blurb">Two planes go up. One comes back. The castle is still standing only if the one that comes back is yours.</p>
+      </div>
+
+      <!-- The island, marked up the way a briefing officer would: ring the thing
+           you're defending, sketch the merge, and leave the rest to the pilot. -->
+      <svg class="map" viewBox="0 0 260 200" role="img" aria-label="Briefing map: an island with the castle ringed at its centre.">
+        <rect class="sea" x="0" y="0" width="260" height="200" rx="2"/>
+        <path class="land" d="M130 24c34 0 62 12 78 34 14 20 16 46 6 68-11 24-36 42-66 48-30 6-62 0-84-16C42 142 30 118 32 94c2-26 20-48 46-60 16-7 34-10 52-10z"/>
+        <path class="hi" d="M74 96c14-16 34-24 56-24s42 8 56 24"/>
+        <path class="hi" d="M84 118c12-12 28-18 46-18s34 6 46 18"/>
+        <circle class="ring" cx="130" cy="100" r="34"/>
+        <path class="keep" d="M118 108v-16l4 4 4-6 4 6 4-4 4 6 4-6 4 4v12z"/>
+        <rect class="keep" x="118" y="108" width="24" height="4"/>
+        <path class="path" d="M18 150c44 8 78-10 96-40"/>
+        <path class="path" d="M242 52c-42-6-76 12-94 42"/>
+        <text x="130" y="152" text-anchor="middle">THE CASTLE</text>
+      </svg>
+    </div>
+
+    <dl class="rows">
+      <div class="row"><dt>Aircraft</dt><i class="dots"></i><dd>2 — you and one other</dd></div>
+      <div class="row"><dt>Ammunition</dt><i class="dots"></i><dd>500 rounds. No resupply.</dd></div>
+      <div class="row"><dt>Castle guns</dt><i class="dots"></i><dd>Firing at anything with wings</dd></div>
+      <div class="row"><dt>Objective</dt><i class="dots"></i><dd>Be the one still flying</dd></div>
+    </dl>
+
+    <div class="act" id="act">
+      <a class="btn" id="go" href="/auth/google">
+        <svg viewBox="0 0 48 48" aria-hidden="true"><path fill="#EA4335" d="M24 9.5c3.5 0 6.6 1.2 9 3.6l6.7-6.7C35.6 2.6 30.2 0 24 0 14.6 0 6.5 5.4 2.6 13.2l7.8 6.1C12.3 13.2 17.7 9.5 24 9.5z"/><path fill="#4285F4" d="M46.1 24.6c0-1.6-.1-3.2-.4-4.6H24v9.1h12.4c-.5 2.9-2.2 5.3-4.6 7l7.6 5.9c4.4-4.1 6.7-10.1 6.7-17.4z"/><path fill="#FBBC05" d="M10.4 28.7c-.5-1.4-.8-2.9-.8-4.7s.3-3.3.8-4.7l-7.8-6.1C.9 16.5 0 20.1 0 24s.9 7.5 2.6 10.8l7.8-6.1z"/><path fill="#34A853" d="M24 48c6.5 0 11.9-2.1 15.9-5.8l-7.6-5.9c-2.1 1.4-4.8 2.3-8.3 2.3-6.3 0-11.7-3.7-13.6-9.8l-7.8 6.1C6.5 42.6 14.6 48 24 48z"/></svg>
+        Sign in with Google
+      </a>
+      <span class="note" id="note">You'll be flying in about ten seconds.</span>
+    </div>
+
+    <div class="stamp" aria-hidden="true"><span>Cleared for<br>takeoff</span></div>
+  </main>
+
+  <nav class="missions">
+    <span style="opacity:1;color:#8d9179">Missions</span>
+    <b>I · Save the Castle</b>
+    <span>II · Save the City — not yet flying</span>
+  </nav>
+  <footer>Airman · airman.athenabot.ai</footer>
+</div>
+
+<script>
+  const card = document.getElementById('card');
+  const go = document.getElementById('go');
+  const note = document.getElementById('note');
+
+  // Already signed in? Don't make them do it twice.
+  fetch('/api/me').then(r => r.ok ? r.json() : null).then(me => {
+    if (!me) return;
+    go.textContent = 'Fly the sortie';
+    go.href = '/game';
+    note.textContent = 'Signed in as ' + me.name + '.';
+  }).catch(() => {});
+
+  // Stamp the dossier, then go. The stamp is the point — give it its half second.
+  go.addEventListener('click', (e) => {
+    if (go.dataset.done) return;
+    const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+    if (reduce) return;
+    e.preventDefault();
+    go.dataset.done = '1';
+    card.classList.add('stamping');
+    setTimeout(() => { window.location.href = go.href; }, 620);
+  });
+</script>
+</body>
+</html>

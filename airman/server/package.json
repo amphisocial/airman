@@ -1,0 +1,17 @@
+{
+  "name": "airman-server",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Authoritative flight server + Google sign-in + static host for Airman.",
+  "engines": { "node": ">=18.17" },
+  "scripts": {
+    "start": "node src/index.js",
+    "dev": "DEV_NO_AUTH=1 node --watch src/index.js"
+  },
+  "dependencies": {
+    "express": "^4.19.2",
+    "express-session": "^1.18.0",
+    "ws": "^8.18.0"
+  }
+}
