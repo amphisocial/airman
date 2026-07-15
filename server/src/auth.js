@@ -55,7 +55,7 @@ router.get('/google/callback', async (req, res) => {
       body,
     });
     if (!r.ok) {
-      console.error('[sortie] token exchange failed', r.status, await r.text());
+      console.error('[airman] token exchange failed', r.status, await r.text());
       return res.status(502).send('Google rejected the sign-in. Try again in a moment.');
     }
     const tok = await r.json();
@@ -70,7 +70,7 @@ router.get('/google/callback', async (req, res) => {
     delete req.session.next;
     req.session.save(() => res.redirect(next));
   } catch (e) {
-    console.error('[sortie] oauth error', e);
+    console.error('[airman] oauth error', e);
     res.status(500).send('Sign-in hit an unexpected error. Try again.');
   }
 });

@@ -2,7 +2,7 @@
 module.exports = {
   apps: [
     {
-      name: 'sortie',
+      name: 'airman',
       cwd: __dirname + '/server',
       script: 'src/index.js',
       exec_mode: 'fork',
@@ -13,8 +13,8 @@ module.exports = {
         NODE_ENV: 'production',
         PORT: '4020',
       },
-      out_file: __dirname + '/logs/sortie.out.log',
-      error_file: __dirname + '/logs/sortie.err.log',
+      out_file: __dirname + '/logs/airman.out.log',
+      error_file: __dirname + '/logs/airman.err.log',
       merge_logs: true,
       time: true,
     },

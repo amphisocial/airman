@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Sortie — Save the Castle</title>
+<title>Airman — Save the Castle</title>
 <meta name="description" content="Two planes, one island, five hundred rounds. Be the one still flying.">
 <meta name="theme-color" content="#2f3327">
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' fill='%232f3327'/><path d='M16 5l2 9 9 2-9 2-2 9-2-9-9-2 9-2z' fill='%23d9cfb1'/></svg>">
@@ -145,8 +145,8 @@
 
     <div class="top">
       <div>
-        <h1 class="mark">Sortie</h1>
-        <p class="mission">Sortie I — Save the Castle</p>
+        <h1 class="mark">Airman</h1>
+        <p class="mission">Mission I — Save the Castle</p>
         <p class="blurb">Two planes go up. One comes back. The castle is still standing only if the one that comes back is yours.</p>
       </div>
 
@@ -189,7 +189,7 @@
     <b>I · Save the Castle</b>
     <span>II · Save the City — not yet flying</span>
   </nav>
-  <footer>Sortie · airplanes.athenabot.ai</footer>
+  <footer>Airman · airman.athenabot.ai</footer>
 </div>
 
 <script>
@@ -200,7 +200,7 @@
   // Already signed in? Don't make them do it twice.
   fetch('/api/me').then(r => r.ok ? r.json() : null).then(me => {
     if (!me) return;
-    go.textContent = 'Fly the sortie';
+    go.textContent = 'Fly the mission';
     go.href = '/game';
     note.textContent = 'Signed in as ' + me.name + '.';
   }).catch(() => {});

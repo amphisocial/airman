@@ -1,4 +1,4 @@
-[gd_scene load_steps=3 format=3 uid="uid://csortie00main"]
+[gd_scene load_steps=3 format=3 uid="uid://cairman00main"]
 
 [ext_resource type="Script" path="res://scenes/Main.gd" id="1_main"]
 [ext_resource type="Script" path="res://scenes/World.gd" id="2_world"]

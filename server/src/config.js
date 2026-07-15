@@ -26,7 +26,7 @@ if (fs.existsSync(envFile)) {
 const need = (k) => {
   const v = process.env[k];
   if (!v && process.env.NODE_ENV === 'production') {
-    console.error(`[sortie] Missing required env var: ${k}`);
+    console.error(`[airman] Missing required env var: ${k}`);
     process.exit(1);
   }
   return v || '';

@@ -28,6 +28,7 @@ export function attachWs(server, sessionParser, lobby) {
       const user = req.session?.user
         || (config.devNoAuth ? { sub: 'dev', name: 'Dev Player' } : null);
       if (!user) {
+        console.warn('[airman] ws rejected: no session on the upgrade request');
         socket.write('HTTP/1.1 401 Unauthorized\r\n\r\n');
         socket.destroy();
         return;
@@ -40,6 +41,7 @@ export function attachWs(server, sessionParser, lobby) {
     const conn = new Conn(ws, user);
     conns.add(conn);
     conn.send({ t: 'hello', name: user.name });
+    console.log(`[airman] ws open: ${user.name} (${conns.size} connected)`);
 
     ws.on('message', (data) => {
       if (conn.budget-- <= 0) return;
@@ -47,6 +49,7 @@ export function attachWs(server, sessionParser, lobby) {
       try { msg = JSON.parse(data.toString()); } catch { return; }
       switch (msg.t) {
         case 'queue':
+          console.log(`[airman] queue request from ${conn.user.name}`);
           if (!conn.room) lobby.enqueue(conn);
           break;
         case 'input':
@@ -65,6 +68,7 @@ export function attachWs(server, sessionParser, lobby) {
     ws.on('pong', () => { conn.alive = true; });
     ws.on('error', () => {});
     ws.on('close', () => {
+      console.log(`[airman] ws close: ${conn.user.name}`);
       conns.delete(conn);
       if (conn.room) conn.room.onLeave(conn.pid);
       lobby.dequeue(conn);

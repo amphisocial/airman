@@ -1,12 +1,12 @@
-# Sortie
+# Airman
 
 Two planes, one island, five hundred rounds. The castle is still standing only
 if the plane that comes back is yours.
 
-**Sortie I — Save the Castle** is the first mission. The name is the container:
-Sortie II is Save the City, and so on. A mission is a level.
+**Mission I — Save the Castle** is the first one. The name is the container:
+Mission II is Save the City, and so on. A mission is a level.
 
-- Live at **https://airplanes.athenabot.ai**
+- Live at **https://airman.athenabot.ai**
 - Deployment: **[DEPLOY.md](DEPLOY.md)**
 
 ---
@@ -38,7 +38,7 @@ Same architecture as Fusebox — the server owns the truth.
 ```
 client/    Godot 4, exports to Web (GL Compatibility, single-threaded)
 server/    Node: Express + express-session + ws. Authoritative flight sim.
-nginx/     Reverse proxy for airplanes.athenabot.ai → 127.0.0.1:4020
+nginx/     Reverse proxy for airman.athenabot.ai → 127.0.0.1:4020
 ```
 
 The server simulates every aircraft at 30Hz and is the only authority on hits,
@@ -75,7 +75,7 @@ npm run dev
 
 Then open `client/` in Godot 4 and hit play. In the editor the client talks to
 `127.0.0.1:4020` (see `DEV_HOST` in `autoload/Net.gd`); in the browser it uses
-the page's own origin, so the `sortie.sid` cookie authenticates the socket.
+the page's own origin, so the `airman.sid` cookie authenticates the socket.
 
 `/healthz` reports rooms, queued players and live players.
 
@@ -88,7 +88,7 @@ arbitrary — most of them are the answer to a specific failure:
 
 - **Induced drag + tapered thrust.** Without a cost for pulling G, a flat
   max-rate turn is free, and two evenly matched pilots orbit each other until
-  the clock runs out. 40 of 40 test sorties timed out before this existed.
+  the clock runs out. 40 of 40 test matches timed out before this existed.
 - **Corner speed.** Without it, speed buys you nothing and there's no reason to
   manage energy.
 - **`BULLET_DMG = 26`.** Swept across the range. Below ~18, evenly matched
@@ -97,7 +97,7 @@ arbitrary — most of them are the answer to a specific failure:
 - **Offset merge spawn.** Nose-to-nose decided matches in five seconds; purely
   tangential meant they orbited 1800 units apart and never met.
 
-Current bot-vs-bot behaviour over 60 sorties: 54 decisive, 6 run the clock out,
+Current bot-vs-bot behaviour over 60 matches: 54 decisive, 6 run the clock out,
 median 127s, winner split evenly between seats.
 
 To retune, `server/src/game/constants.js` is the only file you need — but if you

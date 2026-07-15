@@ -1,5 +1,5 @@
 extends Node
-## Every sound in Sortie is synthesised at boot into AudioStreamWAV.
+## Every sound in Airman is synthesised at boot into AudioStreamWAV.
 ##
 ## No .wav files means nothing to import, nothing to mis-configure in the export,
 ## and no binary blobs in the repo. It also sidesteps the web export's sample

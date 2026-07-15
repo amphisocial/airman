@@ -25,7 +25,7 @@ export class FileStore extends session.Store {
       const raw = JSON.parse(fs.readFileSync(this.file, 'utf8'));
       for (const [k, v] of Object.entries(raw)) this.sessions.set(k, v);
       this.#prune();
-      console.log(`[sortie] restored ${this.sessions.size} session(s)`);
+      console.log(`[airman] restored ${this.sessions.size} session(s)`);
     } catch {
       // No file yet, or it's corrupt. Either way: start clean, don't crash.
     }
@@ -38,7 +38,7 @@ export class FileStore extends session.Store {
       fs.writeFileSync(this.tmp, JSON.stringify(Object.fromEntries(this.sessions)));
       fs.renameSync(this.tmp, this.file); // atomic: never leaves a half-written file
     } catch (e) {
-      console.error('[sortie] could not save sessions:', e.message);
+      console.error('[airman] could not save sessions:', e.message);
     }
   }
 

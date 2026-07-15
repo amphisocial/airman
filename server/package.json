@@ -1,9 +1,9 @@
 {
-  "name": "sortie-server",
+  "name": "airman-server",
   "version": "1.0.0",
   "private": true,
   "type": "module",
-  "description": "Authoritative flight server + Google sign-in + static host for Sortie.",
+  "description": "Authoritative flight server + Google sign-in + static host for Airman.",
   "engines": { "node": ">=18.17" },
   "scripts": {
     "start": "node src/index.js",

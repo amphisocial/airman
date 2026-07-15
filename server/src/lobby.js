@@ -36,8 +36,8 @@ export class Lobby {
     }
   }
 
-  // Nobody else in the air? Scramble a bot. A sortie that never launches is
-  // worse than a sortie against a machine.
+  // Nobody else in the air? Scramble a bot. A mission that never launches is
+  // worse than one flown against a machine.
   fillWithBots() {
     if (!this.queue.length) return;
     if (Date.now() - this.queue[0].queuedAt < config.botFillAfter * 1000) return;
@@ -46,12 +46,15 @@ export class Lobby {
 
   spawnRoom(conns) {
     const seats = conns.map((c) => ({ name: c.user.name, bot: false, conn: c }));
+    const humans = seats.length;
     const names = [...CALLSIGNS].sort(() => Math.random() - 0.5);
     while (seats.length < MAX_PLAYERS) {
       seats.push({ name: names.pop() || 'Bandit', bot: true, conn: null });
     }
     const room = new Room(seats, (r) => this.rooms.delete(r));
     this.rooms.add(room);
+    console.log(`[airman] room ${room.id} launched: ${seats.map((s) => s.name + (s.bot ? ' (bot)' : '')).join(' vs ')}`
+      + ` — ${humans} human, ${seats.length - humans} bot`);
     return room;
   }
 
@@ -61,7 +64,7 @@ export class Lobby {
       try {
         r.tick(DT);
       } catch (e) {
-        console.error('[sortie] room tick failed', r.id, e);
+        console.error('[airman] room tick failed', r.id, e);
         r.close();
       }
     }

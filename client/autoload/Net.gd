@@ -1,5 +1,5 @@
 extends Node
-## WebSocket transport. Same-origin in the browser, so the sortie.sid cookie
+## WebSocket transport. Same-origin in the browser, so the airman.sid cookie
 ## rides along on the handshake and the server already knows who we are.
 
 signal opened
@@ -30,12 +30,18 @@ func connect_to_server() -> void:
 	var url := "%s://%s/ws" % [scheme, o.host]
 	var err := _ws.connect_to_url(url)
 	if err != OK:
-		push_error("Sortie: could not open %s (error %d)" % [url, err])
+		push_error("Airman: could not open %s (error %d)" % [url, err])
 		closed.emit(-1)
 
 
+func is_open() -> bool:
+	return _ws.get_ready_state() == WebSocketPeer.STATE_OPEN
+
+
 func send(msg: Dictionary) -> void:
-	if _state == WebSocketPeer.STATE_OPEN:
+	# Ask the peer directly. Guarding on the cached _state drops any message sent
+	# from inside the `opened` handler, because _state hasn't caught up yet.
+	if _ws.get_ready_state() == WebSocketPeer.STATE_OPEN:
 		_ws.send_text(JSON.stringify(msg))
 
 
@@ -49,11 +55,14 @@ func _process(delta: float) -> void:
 	var st := _ws.get_ready_state()
 
 	if st != _state:
+		# Assign first, emit second. A handler that calls back into Net during
+		# `opened` must not see a stale CONNECTING state.
+		var was := _state
+		_state = st
 		if st == WebSocketPeer.STATE_OPEN:
 			opened.emit()
-		elif st == WebSocketPeer.STATE_CLOSED:
+		elif st == WebSocketPeer.STATE_CLOSED and was != WebSocketPeer.STATE_CLOSED:
 			closed.emit(_ws.get_close_code())
-		_state = st
 
 	if st != WebSocketPeer.STATE_OPEN:
 		return

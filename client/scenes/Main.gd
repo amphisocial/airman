@@ -35,6 +35,9 @@ var _throttle := 0.75
 var _flash := 0.0
 var _last_hp := 100
 var _phase := "menu"
+var _wait := 0.0
+var _requeue := 0.0
+var _acked := false
 
 
 func _ready() -> void:
@@ -52,6 +55,18 @@ func _ready() -> void:
 # --- input ---------------------------------------------------------------
 
 func _process(delta: float) -> void:
+	# Never sit on a hopeful message forever — say something useful instead.
+	if _phase == "queue":
+		_wait += delta
+		# Keep asking until the server acknowledges. enqueue() is idempotent, so
+		# a repeat costs nothing — and this can't be defeated by signal timing.
+		if not _acked and Net.is_open():
+			_requeue -= delta
+			if _requeue <= 0.0:
+				_requeue = 1.5
+				Net.send({"t": "queue"})
+		if _wait > 9.0:
+			lbl_queue.text = "Can't reach the field.\nThe game server answered, but the match never started.\nReload the page to try again."
 	if _phase == "flying":
 		_read_stick(delta)
 		_update_hud()
@@ -86,15 +101,26 @@ func _read_stick(delta: float) -> void:
 func _fly() -> void:
 	_show("queue")
 	lbl_queue.text = "Contacting the field…"
-	Net.connect_to_server()
+	_wait = 0.0
+	_requeue = 0.0
+	_acked = false
+	# Re-queueing on a socket that's still up must not try to reopen it.
+	if Net.is_open():
+		Net.send({"t": "queue"})
+	else:
+		Net.connect_to_server()
 
 
 func _on_queued(waiting: int, need: int) -> void:
+	_wait = 0.0
+	_acked = true
 	_show("queue")
 	lbl_queue.text = "Waiting for another pilot… %d of %d\nA machine will take the other aircraft shortly." % [waiting, need]
 
 
 func _on_live() -> void:
+	_wait = 0.0
+	_acked = true
 	_throttle = 0.75
 	_last_hp = 100
 	_flash = 0.0
@@ -132,8 +158,8 @@ func _on_room_closed() -> void:
 func _on_closed(_code: int) -> void:
 	Sfx.engine_stop()
 	if _phase != "result":
-		_show("menu")
-		lbl_queue.text = "Lost contact with the field."
+		_show("queue")
+		lbl_queue.text = "Lost contact with the field.\nReload the page to try again."
 
 
 func _again() -> void:
@@ -250,7 +276,7 @@ func _build_ui() -> void:
 	col.add_theme_constant_override("separation", 9)
 	menu.add_child(col)
 
-	var title := _label(col, "SORTIE", 62, CARD)
+	var title := _label(col, "AIRMAN", 62, CARD)
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	var sub := _label(col, "Two planes. One island. Five hundred rounds.", 15, Color("#9aa085"))
 	sub.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
@@ -359,7 +385,7 @@ func _build_ui() -> void:
 	lbl_result_sub.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	lbl_result_sub.autowrap_mode = TextServer.AUTOWRAP_WORD
 	rc.add_child(_spacer(14))
-	btn_again = _button(rc, "FLY ANOTHER SORTIE")
+	btn_again = _button(rc, "FLY ANOTHER MISSION")
 	btn_again.pressed.connect(_again)
 
 

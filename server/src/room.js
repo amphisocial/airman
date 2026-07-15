@@ -10,7 +10,7 @@ let nextRoomId = 1;
 
 export class Room {
   constructor(seats, onClosed) {
-    this.id = 's' + nextRoomId++;
+    this.id = 'm' + nextRoomId++;
     this.onClosed = onClosed;
     this.closed = false;
     this.phase = 'live'; // live | done

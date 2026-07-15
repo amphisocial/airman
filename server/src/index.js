@@ -14,7 +14,7 @@ app.disable('x-powered-by');
 app.set('trust proxy', 1); // nginx terminates TLS for us
 
 const sessionParser = session({
-  name: 'sortie.sid',
+  name: 'airman.sid',
   store: new FileStore(path.join(ROOT, '.sessions.json')),
   secret: config.sessionSecret,
   resave: false,
@@ -51,10 +51,15 @@ app.get('/game', requireAuth, (req, res, next) => {
   next();
 });
 app.use('/game', requireAuth, express.static(GAME_DIR, {
-  setHeaders(res, file) {
-    // Godot's .wasm/.pck are content-hashed by the export; the shell is not.
-    if (/\.(wasm|pck|js)$/.test(file)) res.setHeader('Cache-Control', 'public, max-age=604800');
-    else res.setHeader('Cache-Control', 'no-cache');
+  etag: true,
+  lastModified: true,
+  setHeaders(res) {
+    // Godot's web export writes FIXED filenames — index.wasm, index.pck,
+    // index.js — with no content hash. Far-future caching therefore pins every
+    // player to the build they first loaded, and no amount of redeploying can
+    // dislodge it. "no-cache" means revalidate, not "don't store": the browser
+    // still keeps the bytes and a 304 costs nothing.
+    res.setHeader('Cache-Control', 'no-cache');
   },
 }));
 
@@ -66,13 +71,13 @@ const server = http.createServer(app);
 attachWs(server, sessionParser, lobby);
 
 server.listen(config.port, '127.0.0.1', () => {
-  console.log(`[sortie] listening on 127.0.0.1:${config.port} (${config.prod ? 'production' : 'dev'})`);
-  if (config.devNoAuth) console.log('[sortie] DEV_NO_AUTH is on — Google sign-in is bypassed.');
+  console.log(`[airman] listening on 127.0.0.1:${config.port} (${config.prod ? 'production' : 'dev'})`);
+  if (config.devNoAuth) console.log('[airman] DEV_NO_AUTH is on — Google sign-in is bypassed.');
 });
 
 for (const sig of ['SIGINT', 'SIGTERM']) {
   process.on(sig, () => {
-    console.log(`[sortie] ${sig} — shutting down`);
+    console.log(`[airman] ${sig} — shutting down`);
     server.close(() => process.exit(0));
     setTimeout(() => process.exit(0), 3000).unref();
   });

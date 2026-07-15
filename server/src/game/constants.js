@@ -1,4 +1,4 @@
-// Sortie — authoritative constants.
+// Airman — authoritative constants.
 // client/autoload/GameState.gd mirrors the FLIGHT block for local prediction.
 // If you change anything in that block, change it there too.
 
