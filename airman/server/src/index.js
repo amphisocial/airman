@@ -51,10 +51,15 @@ app.get('/game', requireAuth, (req, res, next) => {
   next();
 });
 app.use('/game', requireAuth, express.static(GAME_DIR, {
-  setHeaders(res, file) {
-    // Godot's .wasm/.pck are content-hashed by the export; the shell is not.
-    if (/\.(wasm|pck|js)$/.test(file)) res.setHeader('Cache-Control', 'public, max-age=604800');
-    else res.setHeader('Cache-Control', 'no-cache');
+  etag: true,
+  lastModified: true,
+  setHeaders(res) {
+    // Godot's web export writes FIXED filenames — index.wasm, index.pck,
+    // index.js — with no content hash. Far-future caching therefore pins every
+    // player to the build they first loaded, and no amount of redeploying can
+    // dislodge it. "no-cache" means revalidate, not "don't store": the browser
+    // still keeps the bytes and a 304 costs nothing.
+    res.setHeader('Cache-Control', 'no-cache');
   },
 }));
 

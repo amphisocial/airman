@@ -88,7 +88,7 @@ arbitrary — most of them are the answer to a specific failure:
 
 - **Induced drag + tapered thrust.** Without a cost for pulling G, a flat
   max-rate turn is free, and two evenly matched pilots orbit each other until
-  the clock runs out. 40 of 40 test sorties timed out before this existed.
+  the clock runs out. 40 of 40 test matches timed out before this existed.
 - **Corner speed.** Without it, speed buys you nothing and there's no reason to
   manage energy.
 - **`BULLET_DMG = 26`.** Swept across the range. Below ~18, evenly matched
@@ -97,7 +97,7 @@ arbitrary — most of them are the answer to a specific failure:
 - **Offset merge spawn.** Nose-to-nose decided matches in five seconds; purely
   tangential meant they orbited 1800 units apart and never met.
 
-Current bot-vs-bot behaviour over 60 sorties: 54 decisive, 6 run the clock out,
+Current bot-vs-bot behaviour over 60 matches: 54 decisive, 6 run the clock out,
 median 127s, winner split evenly between seats.
 
 To retune, `server/src/game/constants.js` is the only file you need — but if you

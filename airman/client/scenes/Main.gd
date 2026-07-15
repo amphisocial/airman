@@ -36,6 +36,8 @@ var _flash := 0.0
 var _last_hp := 100
 var _phase := "menu"
 var _wait := 0.0
+var _requeue := 0.0
+var _acked := false
 
 
 func _ready() -> void:
@@ -56,6 +58,13 @@ func _process(delta: float) -> void:
 	# Never sit on a hopeful message forever — say something useful instead.
 	if _phase == "queue":
 		_wait += delta
+		# Keep asking until the server acknowledges. enqueue() is idempotent, so
+		# a repeat costs nothing — and this can't be defeated by signal timing.
+		if not _acked and Net.is_open():
+			_requeue -= delta
+			if _requeue <= 0.0:
+				_requeue = 1.5
+				Net.send({"t": "queue"})
 		if _wait > 9.0:
 			lbl_queue.text = "Can't reach the field.\nThe game server answered, but the match never started.\nReload the page to try again."
 	if _phase == "flying":
@@ -93,6 +102,8 @@ func _fly() -> void:
 	_show("queue")
 	lbl_queue.text = "Contacting the field…"
 	_wait = 0.0
+	_requeue = 0.0
+	_acked = false
 	# Re-queueing on a socket that's still up must not try to reopen it.
 	if Net.is_open():
 		Net.send({"t": "queue"})
@@ -102,12 +113,14 @@ func _fly() -> void:
 
 func _on_queued(waiting: int, need: int) -> void:
 	_wait = 0.0
+	_acked = true
 	_show("queue")
 	lbl_queue.text = "Waiting for another pilot… %d of %d\nA machine will take the other aircraft shortly." % [waiting, need]
 
 
 func _on_live() -> void:
 	_wait = 0.0
+	_acked = true
 	_throttle = 0.75
 	_last_hp = 100
 	_flash = 0.0
@@ -372,7 +385,7 @@ func _build_ui() -> void:
 	lbl_result_sub.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	lbl_result_sub.autowrap_mode = TextServer.AUTOWRAP_WORD
 	rc.add_child(_spacer(14))
-	btn_again = _button(rc, "FLY ANOTHER SORTIE")
+	btn_again = _button(rc, "FLY ANOTHER MISSION")
 	btn_again.pressed.connect(_again)
 
 

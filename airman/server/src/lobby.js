@@ -36,8 +36,8 @@ export class Lobby {
     }
   }
 
-  // Nobody else in the air? Scramble a bot. A sortie that never launches is
-  // worse than a sortie against a machine.
+  // Nobody else in the air? Scramble a bot. A mission that never launches is
+  // worse than one flown against a machine.
   fillWithBots() {
     if (!this.queue.length) return;
     if (Date.now() - this.queue[0].queuedAt < config.botFillAfter * 1000) return;

@@ -207,7 +207,7 @@ pm2 restart airman
 | Symptom | Cause |
 |---|---|
 | `ERR_MODULE_NOT_FOUND: express` | `npm install` didn't run in `server/`. `cd /opt/apps/airman/server && npm install --omit=dev` |
-| Briefing page loads, "Fly the sortie" 503s | The Godot export isn't in `server/public/game/`. Re-export and push. |
+| Briefing page loads, "Fly the mission" 503s | The Godot export isn't in `server/public/game/`. Re-export and push. |
 | Blank canvas, console mentions `SharedArrayBuffer` | Thread Support was ON in the export. Turn it off and re-export. |
 | Stuck on "Contacting the field…" | nginx `/ws` block missing the `Upgrade`/`Connection` headers. |
 | `redirect_uri_mismatch` at sign-in | `GOOGLE_REDIRECT_URI` ≠ the URI in the Google console. |

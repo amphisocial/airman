@@ -200,7 +200,7 @@
   // Already signed in? Don't make them do it twice.
   fetch('/api/me').then(r => r.ok ? r.json() : null).then(me => {
     if (!me) return;
-    go.textContent = 'Fly the sortie';
+    go.textContent = 'Fly the mission';
     go.href = '/game';
     note.textContent = 'Signed in as ' + me.name + '.';
   }).catch(() => {});
