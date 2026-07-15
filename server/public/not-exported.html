@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Sortie — no aircraft on the line</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Black+Ops+One&family=Special+Elite&display=swap" rel="stylesheet">
+<style>
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{min-height:100vh;background:#2f3327;color:#d9cfb1;font-family:"Special Elite",monospace;
+       display:flex;align-items:center;justify-content:center;padding:24px}
+  .card{background:#d9cfb1;color:#221f19;max-width:620px;padding:34px;border-radius:2px;
+        transform:rotate(-.5deg);box-shadow:0 26px 60px -18px rgba(0,0,0,.45)}
+  h1{font-family:"Black Ops One",Impact,sans-serif;font-size:34px;text-transform:uppercase;margin-bottom:6px}
+  .sub{color:#a8352b;text-transform:uppercase;letter-spacing:.14em;font-size:12px;margin-bottom:18px}
+  p{color:#5d5744;line-height:1.7;font-size:15px;margin-bottom:14px}
+  code{background:#221f19;color:#d9cfb1;padding:2px 7px;border-radius:2px;font-size:13px}
+  a{color:#2b5f7e}
+</style>
+</head>
+<body>
+  <div class="card">
+    <h1>No aircraft on the line</h1>
+    <p class="sub">The game hasn't been exported yet</p>
+    <p>The server is up, but <code>server/public/game/index.html</code> is missing — so there's nothing to fly.</p>
+    <p>Open <code>client/</code> in Godot 4, then <b>Project → Export → Web</b> and export to <code>server/public/game/index.html</code>. Commit the result and deploy again.</p>
+    <p><a href="/">Back to the briefing</a></p>
+  </div>
+</body>
+</html>

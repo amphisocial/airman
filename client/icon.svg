@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" width="128" height="128">
+  <rect width="128" height="128" rx="16" fill="#2f3327"/>
+  <!-- the castle, low and solid -->
+  <path d="M30 104V80l7 6 7-8 7 8 7-8 7 8 7-8 7 8 7-6v24z" fill="#6b6656"/>
+  <rect x="30" y="98" width="68" height="14" fill="#7d7866"/>
+  <!-- the plane, banking across it -->
+  <g transform="rotate(-18 64 52)">
+    <rect x="60" y="26" width="8" height="46" rx="2" fill="#d9cfb1"/>
+    <rect x="34" y="46" width="60" height="7" rx="2" fill="#d9cfb1"/>
+    <rect x="50" y="64" width="28" height="5" rx="2" fill="#d9cfb1"/>
+    <rect x="62" y="20" width="4" height="10" rx="1" fill="#a8352b"/>
+  </g>
+</svg>
