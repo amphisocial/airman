@@ -1,5 +1,5 @@
 import {
-  DT, MAX_HP, AMMO, FIRE_HZ, BULLET_SPEED, BULLET_LIFE, BULLET_DMG, GUN_SPREAD,
+  SPEED_MODES, DEFAULT_MODE, DT, MAX_HP, AMMO, FIRE_HZ, BULLET_SPEED, BULLET_LIFE, BULLET_DMG, GUN_SPREAD,
   FLAK_RANGE, FLAK_SPEED, FLAK_BURST_R, FLAK_DMG, FLAK_FIRST, FLAK_GAP_START,
   FLAK_GAP_END, FLAK_RAMP, FLAK_LEAD_ERR, TOWERS,
   MATCH_TIME, SPAWN_DIST, SPAWN_ALT, PLAY_RADIUS, OOB_GRACE, OOB_DPS,
@@ -15,8 +15,10 @@ const CEILING = 900;
 let nextId = 1;
 
 export class Match {
-  constructor(players, seed) {
+  constructor(players, seed, modeName = DEFAULT_MODE) {
     this.players = players; // [{pid, name, bot, slot}]
+    this.mode = SPEED_MODES[modeName] || SPEED_MODES[DEFAULT_MODE];
+    this.k = this.mode.k;
     this.seed = seed >>> 0;
     this.rand = mulberry(this.seed ^ 0x51ed270b);
     this.hmap = makeTerrain(this.seed);
@@ -48,7 +50,7 @@ export class Match {
       // the line, both breaking the same way, gives a clean pass into a turning fight.
       const toC = a + Math.PI + 0.7;
       p.q = qLook(v3(Math.cos(toC), -0.08, Math.sin(toC)));
-      p.speed = (MIN_SPEED + MAX_SPEED) * 0.5;
+      p.speed = (MIN_SPEED + MAX_SPEED) * 0.5 * this.k;
       p.hp = MAX_HP;
       p.ammo = AMMO;
       p.alive = true;
@@ -59,7 +61,7 @@ export class Match {
       p.botT = 0;
       // Two bots with identical judgement make identical mistakes and lock into
       // a scissors nobody can win. Give each pilot a slightly different hand.
-      p.botSkill = 0.030 + this.rand() * 0.025;
+      p.botSkill = (0.030 + this.rand() * 0.025) * this.mode.botErr;
       p.botNerve = 0.85 + this.rand() * 0.3;
     }
   }
@@ -185,7 +187,7 @@ export class Match {
     // Lead the target, then fumble the solution a bit. A gun that never misses
     // isn't a hazard, it's a wall.
     const flat = len(sub(target.pos, from));
-    const t = flat / FLAK_SPEED;
+    const t = flat / (FLAK_SPEED * this.k);
     const vel = scale(fwdOf(target.q), target.speed);
     const err = 1 + (this.rand() * 2 - 1) * FLAK_LEAD_ERR;
     const aim = add(target.pos, scale(vel, t * err));
@@ -198,8 +200,8 @@ export class Match {
     const s = {
       id: nextId++,
       pos: from,
-      vel: scale(dir, FLAK_SPEED),
-      fuse: dist / FLAK_SPEED,
+      vel: scale(dir, FLAK_SPEED * this.k),
+      fuse: dist / (FLAK_SPEED * this.k),
     };
     this.shells.push(s);
     this.newShells.push([s.id, r1(from.x), r1(from.y), r1(from.z),
@@ -233,7 +235,7 @@ export class Match {
 
     for (const p of this.players) {
       if (!p.alive) continue;
-      stepFlight(p, p.in, dt);
+      stepFlight(p, p.in, dt, this.k);
       this.stepGuns(p, dt);
       this.stepBounds(p, dt);
 

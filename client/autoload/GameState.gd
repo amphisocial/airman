@@ -14,6 +14,7 @@ signal hit_marker(pos: Vector3)
 signal death(pid: int, cause: String, pos: Vector3)
 signal flak_burst(pos: Vector3)
 signal shot_fired(pid: int, pos: Vector3)
+signal flak_fired(pos: Vector3)
 
 # --- FLIGHT ---------------------------------------------------------------
 # Mirrors server/src/game/flight.js and the FLIGHT block of constants.js.
@@ -46,6 +47,9 @@ var play_radius := 1400.0
 var match_time := 300.0
 var time_left := 300.0
 var ammo_max := 500
+# Mirrors Match.k on the server, delivered in the match message.
+var speed_scale := 1.0
+var speed_mode := "medium"
 var live := false
 
 var input := {"pitch": 0.0, "roll": 0.0, "yaw": 0.0, "throttle": 0.75, "fire": false}
@@ -89,18 +93,25 @@ func height_at(x: float, z: float) -> float:
 
 
 ## One step of the flight model — the GDScript twin of stepFlight() in flight.js.
-static func step_flight(pos: Vector3, q: Quaternion, speed: float, inp: Dictionary, dt: float) -> Dictionary:
+static func step_flight(pos: Vector3, q: Quaternion, speed: float, inp: Dictionary, dt: float, k := 1.0) -> Dictionary:
 	var pitch: float = clampf(inp.get("pitch", 0.0), -1.0, 1.0)
 	var roll: float = clampf(inp.get("roll", 0.0), -1.0, 1.0)
 	var yaw: float = clampf(inp.get("yaw", 0.0), -1.0, 1.0)
 	var throttle: float = clampf(inp.get("throttle", 0.7), 0.0, 1.0)
 
-	var auth := clampf((speed - MIN_SPEED * 0.55) / (STALL_SPEED - MIN_SPEED * 0.55), 0.22, 1.0)
+	# Every speed threshold scales; every angular rate does not. That is what
+	# makes a slower aircraft easier: same turn rate, less ground covered.
+	var min_s := MIN_SPEED * k
+	var max_s := MAX_SPEED * k
+	var stall_s := STALL_SPEED * k
+	var corner_s := CORNER_SPEED * k
+
+	var auth := clampf((speed - min_s * 0.55) / (stall_s - min_s * 0.55), 0.22, 1.0)
 	var rate := 0.0
-	if speed <= CORNER_SPEED:
-		rate = clampf(speed / CORNER_SPEED, 0.3, 1.0)
+	if speed <= corner_s:
+		rate = clampf(speed / corner_s, 0.3, 1.0)
 	else:
-		rate = clampf(CORNER_SPEED / speed, 0.55, 1.0)
+		rate = clampf(corner_s / speed, 0.55, 1.0)
 
 	q = q * Quaternion(Vector3(0, 0, -1), roll * ROLL_RATE * dt * auth)
 	q = q * Quaternion(Vector3(1, 0, 0), pitch * PITCH_RATE * dt * auth * rate)
@@ -113,15 +124,15 @@ static func step_flight(pos: Vector3, q: Quaternion, speed: float, inp: Dictiona
 	var turn := -sin(bank) * TURN_COEF * auth * rate
 	q = (Quaternion(Vector3(0, 1, 0), turn * dt) * q).normalized()
 
-	var target := MIN_SPEED + throttle * (MAX_SPEED - MIN_SPEED)
+	var target := min_s + throttle * (max_s - min_s)
 	speed += (target - speed) * THRUST_K * dt
 	var f := q * Vector3(0, 0, -1)
-	speed -= f.y * CLIMB_DRAG * dt
-	speed -= absf(pitch) * auth * TURN_DRAG * dt
-	speed = clampf(speed, 22.0, MAX_SPEED * 1.3)
+	speed -= f.y * CLIMB_DRAG * k * dt
+	speed -= absf(pitch) * auth * TURN_DRAG * k * dt
+	speed = clampf(speed, 22.0 * k, max_s * 1.3)
 
-	if speed < STALL_SPEED:
-		var droop := (1.0 - speed / STALL_SPEED) * 1.6 * dt
+	if speed < stall_s:
+		var droop := (1.0 - speed / stall_s) * 1.6 * dt
 		var nf := (f + Vector3(0, -droop, 0)).normalized()
 		var ref := q * Vector3(0, 1, 0)
 		if absf(nf.dot(ref)) > 0.999:
@@ -174,6 +185,8 @@ func _start_match(m: Dictionary) -> void:
 	match_time = float(m.get("matchTime", 300.0))
 	time_left = match_time
 	ammo_max = int(m.get("ammo", 500))
+	speed_scale = float(m.get("speedScale", 1.0))
+	speed_mode = str(m.get("speedMode", "medium"))
 	hmap = Marshalls.base64_to_raw(str(m.get("terrain", "")))
 
 	for row in m.get("players", []):
@@ -233,11 +246,13 @@ func _snapshot(m: Dictionary) -> void:
 		bullets.erase(int(id))
 
 	for s in m.get("nf", []):
+		var origin := Vector3(float(s[1]), float(s[2]), float(s[3]))
 		shells[int(s[0])] = {
-			"pos": Vector3(float(s[1]), float(s[2]), float(s[3])),
+			"pos": origin,
 			"vel": Vector3(float(s[4]), float(s[5]), float(s[6])),
 			"fuse": float(s[7]),
 		}
+		flak_fired.emit(origin)
 
 	for h in m.get("h", []):
 		hit_marker.emit(Vector3(float(h[0]), float(h[1]), float(h[2])))
@@ -261,7 +276,7 @@ func _process(delta: float) -> void:
 		guard += 1
 		var p: Dictionary = players.get(you, {})
 		if not p.is_empty() and p.alive and p.spawned:
-			var r := step_flight(p.pos, p.q, p.speed, input, DT)
+			var r := step_flight(p.pos, p.q, p.speed, input, DT, speed_scale)
 			p.pos = r.pos
 			p.q = r.q
 			p.speed = r.speed

@@ -35,6 +35,8 @@ var _throttle := 0.75
 var _flash := 0.0
 var _last_hp := 100
 var _phase := "menu"
+var _speed_mode := "medium"
+var _mode_btns := {}
 var _wait := 0.0
 var _requeue := 0.0
 var _acked := false
@@ -44,7 +46,7 @@ func _ready() -> void:
 	_build_ui()
 	_add_mouse_fire()
 	Net.message.connect(GameState.on_message)
-	Net.opened.connect(func(): Net.send({"t": "queue"}))
+	Net.opened.connect(_send_queue)
 	Net.closed.connect(_on_closed)
 	GameState.queued.connect(_on_queued)
 	GameState.match_ready.connect(_on_live)
@@ -79,7 +81,7 @@ func _process(delta: float) -> void:
 			_requeue -= delta
 			if _requeue <= 0.0:
 				_requeue = 1.5
-				Net.send({"t": "queue"})
+				_send_queue()
 		if _wait > 9.0:
 			lbl_queue.text = "Can't reach the field.\nThe game server answered, but the match never started.\nReload the page to try again."
 	if _phase == "flying":
@@ -121,9 +123,15 @@ func _fly() -> void:
 	_acked = false
 	# Re-queueing on a socket that's still up must not try to reopen it.
 	if Net.is_open():
-		Net.send({"t": "queue"})
+		_send_queue()
 	else:
 		Net.connect_to_server()
+
+
+## Both aircraft must fly identically, so speed is a match setting rather than a
+## personal one — the server takes it from whoever queued first.
+func _send_queue() -> void:
+	Net.send({"t": "queue", "speed": _speed_mode})
 
 
 func _on_queued(waiting: int, need: int) -> void:
@@ -136,7 +144,7 @@ func _on_queued(waiting: int, need: int) -> void:
 func _on_live() -> void:
 	_wait = 0.0
 	_acked = true
-	# The button you clicked to get here still has keyboard focus, and a focused
+	# The button you clicked to get here still holds keyboard focus, and a focused
 	# Button consumes SPACE. Let it go before anyone reaches for the trigger.
 	get_viewport().gui_release_focus()
 	_throttle = 0.75
@@ -228,7 +236,7 @@ func _update_hud() -> void:
 		w = "YOU ARE DOWN"
 	elif me.oob:
 		w = "RETURN TO THE ISLAND"
-	elif me.speed < 72.0:
+	elif me.speed < GameState.STALL_SPEED * GameState.speed_scale * 1.09:
 		w = "STALL — GET THE NOSE DOWN"
 	elif me.ammo == 0:
 		w = "OUT OF AMMUNITION"
@@ -290,7 +298,7 @@ func _build_ui() -> void:
 	ui.add_child(menu)
 
 	var col := VBoxContainer.new()
-	_anchor(col, 0.5, 0.5, 0.5, 0.5, -230, -210, 230, 210)
+	_anchor(col, 0.5, 0.5, 0.5, 0.5, -230, -250, 230, 250)
 	col.add_theme_constant_override("separation", 9)
 	menu.add_child(col)
 
@@ -299,7 +307,12 @@ func _build_ui() -> void:
 	var sub := _label(col, "Two planes. One island. Five hundred rounds.", 15, Color("#9aa085"))
 	sub.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 
-	col.add_child(_spacer(18))
+	col.add_child(_spacer(14))
+	var slab := _label(col, "AIRCRAFT SPEED", 11, Color("#8d9179"))
+	slab.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_speed_row(col)
+
+	col.add_child(_spacer(14))
 	btn_fly = _button(col, "I  ·  SAVE THE CASTLE")
 	btn_fly.pressed.connect(_fly)
 	_button(col, "II  ·  SAVE THE CITY  —  not yet flying", false)
@@ -423,6 +436,34 @@ func _full(c: Control) -> void:
 	_anchor(c, 0, 0, 1, 1, 0, 0, 0, 0)
 
 
+func _speed_row(parent: Control) -> void:
+	var row := HBoxContainer.new()
+	row.alignment = BoxContainer.ALIGNMENT_CENTER
+	row.add_theme_constant_override("separation", 8)
+	parent.add_child(row)
+	for m in [["low", "LOW"], ["medium", "MEDIUM"], ["high", "HIGH"]]:
+		var b := Button.new()
+		b.text = str(m[1])
+		b.custom_minimum_size = Vector2(114, 34)
+		b.add_theme_font_size_override("font_size", 13)
+		b.add_theme_color_override("font_color", CARD)
+		row.add_child(b)
+		_mode_btns[m[0]] = b
+		b.pressed.connect(_set_speed.bind(str(m[0])))
+	_set_speed(_speed_mode)
+
+
+
+func _set_speed(m: String) -> void:
+	_speed_mode = m
+	for key in _mode_btns:
+		var b: Button = _mode_btns[key]
+		var on: bool = key == m
+		b.add_theme_stylebox_override("normal", _panel(STAMP if on else INK, 0.95 if on else 0.45))
+		b.add_theme_stylebox_override("hover", _panel(STAMP if on else Color("#3a352a"), 1.0))
+		b.add_theme_stylebox_override("pressed", _panel(STAMP, 0.95))
+
+
 func _spacer(h: int) -> Control:
 	var s := Control.new()
 	s.custom_minimum_size = Vector2(0, h)
@@ -449,7 +490,6 @@ class Marks:
 		var ink := Color(0.85, 0.88, 0.72, 0.85)
 		var font := ThemeDB.fallback_font
 
-		# Gunsight.
 		draw_arc(c, 15.0, 0.0, TAU, 28, ink, 1.5)
 		draw_line(c + Vector2(-26, 0), c + Vector2(-8, 0), ink, 1.5)
 		draw_line(c + Vector2(8, 0), c + Vector2(26, 0), ink, 1.5)
@@ -496,7 +536,7 @@ class Marks:
 		_strip(me, foe, font)
 
 	## Where he is, in clock code. A chase camera shows you nothing behind the
-	## tail, and that is exactly where a bot who's winning will be.
+	## tail, and that is exactly where a bot who is winning will be.
 	func _strip(me: Dictionary, foe: Dictionary, font: Font) -> void:
 		var w: float = minf(size.x - 140.0, 520.0)
 		var cx: float = size.x * 0.5
@@ -524,7 +564,7 @@ class Marks:
 		var flat_t := Vector2(to.x, to.z)
 		if flat_f.length() < 0.001 or flat_t.length() < 0.001:
 			return
-		var bearing: float = flat_f.angle_to(flat_t)          # + = off to your right
+		var bearing: float = flat_f.angle_to(flat_t)
 		var t: float = clampf(bearing / PI, -1.0, 1.0)
 		var mx: float = left + (t * 0.5 + 0.5) * w
 		var dist: float = to.length()

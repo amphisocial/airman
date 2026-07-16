@@ -16,6 +16,7 @@ var _shells: Array[MeshInstance3D] = []
 var _bursts: Array = []    # {node, t, life, r}
 var _burst_pool: Array[MeshInstance3D] = []
 var _built := false
+var _trail_t := 0.0
 var _cam_ready := false
 
 var _mat_tracer: StandardMaterial3D
@@ -66,8 +67,14 @@ func _ready() -> void:
 	_mat_tracer.emission = Color(1.0, 0.78, 0.3)
 	_mat_tracer.emission_energy_multiplier = 4.5
 
+	# The shells were dark grey dots at 1300 units — invisible, which rather
+	# defeats a hazard you're meant to dodge.
 	_mat_shell = StandardMaterial3D.new()
-	_mat_shell.albedo_color = Color(0.15, 0.15, 0.16)
+	_mat_shell.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	_mat_shell.albedo_color = Color(1.0, 0.72, 0.25)
+	_mat_shell.emission_enabled = true
+	_mat_shell.emission = Color(1.0, 0.55, 0.15)
+	_mat_shell.emission_energy_multiplier = 4.0
 
 	_mat_burst = StandardMaterial3D.new()
 	_mat_burst.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
@@ -80,6 +87,7 @@ func _ready() -> void:
 	GameState.hit_marker.connect(_on_hit)
 	GameState.death.connect(_on_death)
 	GameState.shot_fired.connect(_on_shot)
+	GameState.flak_fired.connect(_on_flak_fired)
 
 
 # --- building ------------------------------------------------------------
@@ -154,7 +162,7 @@ func _build_terrain() -> void:
 			var hu := _h(i, j + 1, n, max_h)
 			var nrm := Vector3(hl - hr, 2.0 * step, hd - hu).normalized()
 			norms[j * n + i] = nrm
-			cols[j * n + i] = _ground_color(verts[j * n + i].y, nrm.y)
+			cols[j * n + i] = _ground_color(verts[j * n + i].y, nrm.y, _patch(i, j))
 
 	var idx := PackedInt32Array()
 	idx.resize((n - 1) * (n - 1) * 6)
@@ -197,24 +205,41 @@ func _h(i: int, j: int, n: int, max_h: float) -> float:
 	return (float(GameState.hmap[cj * n + ci]) / 255.0) * max_h
 
 
-func _ground_color(h: float, up: float) -> Color:
-	var sand := Color(0.80, 0.73, 0.52)
-	var grass := Color(0.27, 0.40, 0.21)
-	var grass2 := Color(0.36, 0.47, 0.25)
-	var rock := Color(0.44, 0.42, 0.39)
+func _ground_color(h: float, up: float, patch: float) -> Color:
+	# Green from the waterline up. A narrow strip of sand keeps the shoreline
+	# legible; above that it's meadow shading into upland grass, and only a
+	# genuine cliff shows bare rock.
+	var beach := Color(0.87, 0.81, 0.59)
+	var meadow := Color(0.38, 0.60, 0.25)
+	var grass := Color(0.29, 0.51, 0.21)
+	var upland := Color(0.44, 0.57, 0.28)
+	var copse := Color(0.19, 0.35, 0.15)
+	var rock := Color(0.47, 0.45, 0.41)
+
 	var c: Color
-	if h < 5.0:
-		c = sand
-	elif h < 18.0:
-		c = sand.lerp(grass, (h - 5.0) / 13.0)
-	elif h < 120.0:
-		c = grass.lerp(grass2, (h - 18.0) / 102.0)
+	if h < 3.0:
+		c = beach
+	elif h < 10.0:
+		c = beach.lerp(meadow, (h - 3.0) / 7.0)
+	elif h < 90.0:
+		c = meadow.lerp(grass, (h - 10.0) / 80.0)
 	else:
-		c = grass2.lerp(rock, clampf((h - 120.0) / 80.0, 0.0, 1.0))
-	# Anything steep is bare rock, whatever height it's at.
-	if up < 0.82 and h > 8.0:
-		c = c.lerp(rock, clampf((0.82 - up) / 0.35, 0.0, 1.0))
+		c = grass.lerp(upland, clampf((h - 90.0) / 130.0, 0.0, 1.0))
+
+	# Flat green reads as plastic. Mottle it so the ground has some grain.
+	if h > 6.0:
+		c = c.lerp(copse, patch * 0.42)
+	if up < 0.62:
+		c = c.lerp(rock, clampf((0.62 - up) / 0.30, 0.0, 1.0))
 	return c
+
+
+## Cheap, smooth, deterministic patchiness — no texture, no second noise field
+## over the wire, and it costs one sin per vertex.
+func _patch(i: int, j: int) -> float:
+	var a := sin(float(i) * 0.17) * cos(float(j) * 0.13)
+	var b := sin(float(i) * 0.061 + float(j) * 0.047)
+	return clampf(0.5 + (a * 0.32 + b * 0.55) * 0.5, 0.0, 1.0)
 
 
 func _build_sea() -> void:
@@ -245,43 +270,74 @@ func _box(parent: Node3D, size: Vector3, pos: Vector3, mat: Material) -> MeshIns
 
 func _build_castle() -> void:
 	var root := Node3D.new()
-	var stone := StandardMaterial3D.new()
-	stone.albedo_color = Color(0.55, 0.53, 0.48)
-	stone.roughness = 0.9
-	var dark := StandardMaterial3D.new()
-	dark.albedo_color = Color(0.34, 0.30, 0.28)
-	dark.roughness = 0.9
-	var banner := StandardMaterial3D.new()
-	banner.albedo_color = Color(0.66, 0.21, 0.17)
 
-	# Curtain wall between the towers.
+	# Warm sandstone, blue slate roofs, red and gold banners. It's the thing you
+	# are defending — it should look worth defending, and it should be findable
+	# from a mile up.
+	var wall := StandardMaterial3D.new()
+	wall.albedo_color = Color(0.84, 0.76, 0.56)
+	wall.roughness = 0.85
+	var stone := StandardMaterial3D.new()
+	stone.albedo_color = Color(0.90, 0.84, 0.66)
+	stone.roughness = 0.85
+	var trim := StandardMaterial3D.new()
+	trim.albedo_color = Color(0.55, 0.46, 0.32)
+	var roof := StandardMaterial3D.new()
+	roof.albedo_color = Color(0.16, 0.36, 0.66)
+	roof.roughness = 0.6
+	var keep_roof := StandardMaterial3D.new()
+	keep_roof.albedo_color = Color(0.72, 0.22, 0.18)
+	keep_roof.roughness = 0.7
+	var banner := StandardMaterial3D.new()
+	banner.albedo_color = Color(0.86, 0.16, 0.14)
+	var gold := StandardMaterial3D.new()
+	gold.albedo_color = Color(0.92, 0.74, 0.22)
+	gold.metallic = 0.6
+	gold.roughness = 0.3
+	var gun_mat := StandardMaterial3D.new()
+	gun_mat.albedo_color = Color(0.22, 0.24, 0.26)
+
 	var wall_h := 34.0
 	var span := TOWER_XZ * 2.0
 	for s in [-1.0, 1.0]:
-		_box(root, Vector3(span, wall_h, 10), Vector3(0, PLATEAU_H + wall_h * 0.5, s * TOWER_XZ), stone)
-		_box(root, Vector3(10, wall_h, span), Vector3(s * TOWER_XZ, PLATEAU_H + wall_h * 0.5, 0), stone)
+		_box(root, Vector3(span, wall_h, 10), Vector3(0, PLATEAU_H + wall_h * 0.5, s * TOWER_XZ), wall)
+		_box(root, Vector3(10, wall_h, span), Vector3(s * TOWER_XZ, PLATEAU_H + wall_h * 0.5, 0), wall)
+		# A band of trim along the parapet gives the walls a line to read against.
+		_box(root, Vector3(span, 3, 11), Vector3(0, PLATEAU_H + wall_h - 2.0, s * TOWER_XZ), trim)
+		_box(root, Vector3(11, 3, span), Vector3(s * TOWER_XZ, PLATEAU_H + wall_h - 2.0, 0), trim)
 
-	# Battlements — the silhouette is most of what makes it read as a castle.
 	for i in range(-6, 7):
 		var o := float(i) * 20.0
 		for s in [-1.0, 1.0]:
 			_box(root, Vector3(9, 6, 10), Vector3(o, PLATEAU_H + wall_h + 3.0, s * TOWER_XZ), stone)
 			_box(root, Vector3(10, 6, 9), Vector3(s * TOWER_XZ, PLATEAU_H + wall_h + 3.0, o), stone)
 
-	# Keep.
+	# Keep, with a red roof and a gold finial.
 	_box(root, Vector3(86, 74, 86), Vector3(0, PLATEAU_H + 37, 0), stone)
-	_box(root, Vector3(94, 6, 94), Vector3(0, PLATEAU_H + 76, 0), dark)
-	_box(root, Vector3(2, 20, 2), Vector3(0, PLATEAU_H + 88, 0), dark)
-	_box(root, Vector3(14, 9, 1), Vector3(7.5, PLATEAU_H + 93, 0), banner)
+	_box(root, Vector3(90, 4, 90), Vector3(0, PLATEAU_H + 74, 0), trim)
+	var kr := MeshInstance3D.new()
+	var krm := CylinderMesh.new()
+	krm.top_radius = 0.0
+	krm.bottom_radius = 66.0
+	krm.height = 34.0
+	krm.radial_segments = 4
+	kr.mesh = krm
+	kr.material_override = keep_roof
+	kr.position = Vector3(0, PLATEAU_H + 93, 0)
+	kr.rotation_degrees = Vector3(0, 45, 0)
+	root.add_child(kr)
 
-	# Towers, with the guns on top.
+	_box(root, Vector3(2, 22, 2), Vector3(0, PLATEAU_H + 120, 0), gold)
+	_box(root, Vector3(16, 10, 1), Vector3(8.5, PLATEAU_H + 126, 0), banner)
+
+	# Towers: cream drums, blue cones, a pennant, and the gun on the balcony.
 	for sx in [-1.0, 1.0]:
 		for sz in [-1.0, 1.0]:
 			var cyl := CylinderMesh.new()
 			cyl.top_radius = 17.0
 			cyl.bottom_radius = 20.0
 			cyl.height = 62.0
-			cyl.radial_segments = 12
+			cyl.radial_segments = 14
 			var t := MeshInstance3D.new()
 			t.mesh = cyl
 			t.material_override = stone
@@ -289,22 +345,35 @@ func _build_castle() -> void:
 			root.add_child(t)
 
 			var cap := CylinderMesh.new()
-			cap.top_radius = 21.0
-			cap.bottom_radius = 21.0
+			cap.top_radius = 22.0
+			cap.bottom_radius = 22.0
 			cap.height = 4.0
-			cap.radial_segments = 12
+			cap.radial_segments = 14
 			var cp := MeshInstance3D.new()
 			cp.mesh = cap
-			cp.material_override = dark
+			cp.material_override = trim
 			cp.position = Vector3(sx * TOWER_XZ, TOWER_TOP, sz * TOWER_XZ)
 			root.add_child(cp)
 
-			# The gun itself: a stub barrel angled at the sky.
+			var cone := CylinderMesh.new()
+			cone.top_radius = 0.0
+			cone.bottom_radius = 19.0
+			cone.height = 26.0
+			cone.radial_segments = 14
+			var cn := MeshInstance3D.new()
+			cn.mesh = cone
+			cn.material_override = roof
+			cn.position = Vector3(sx * TOWER_XZ, TOWER_TOP + 15.0, sz * TOWER_XZ)
+			root.add_child(cn)
+
+			_box(root, Vector3(1, 12, 1), Vector3(sx * TOWER_XZ, TOWER_TOP + 34.0, sz * TOWER_XZ), gold)
+			_box(root, Vector3(9, 5, 1), Vector3(sx * TOWER_XZ + 5.0, TOWER_TOP + 37.0, sz * TOWER_XZ), gold)
+
 			var gun := Node3D.new()
 			gun.position = Vector3(sx * TOWER_XZ, TOWER_TOP + 3.0, sz * TOWER_XZ)
 			root.add_child(gun)
-			_box(gun, Vector3(9, 4, 9), Vector3(0, 1, 0), dark)
-			var barrel := _box(gun, Vector3(1.7, 1.7, 17), Vector3(0, 4.5, 0), dark)
+			_box(gun, Vector3(11, 5, 11), Vector3(0, 1, 0), gun_mat)
+			var barrel := _box(gun, Vector3(2.0, 2.0, 19), Vector3(0, 5.0, 0), gun_mat)
 			barrel.rotation_degrees = Vector3(-52, sx * sz * 24.0, 0)
 
 	_scenery(root)
@@ -369,6 +438,13 @@ func _on_shot(pid: int, pos: Vector3) -> void:
 func _on_hit(pos: Vector3) -> void:
 	Sfx.play_at("hit", pos, -4.0)
 	_spawn_burst(pos, 7.0, 0.22, Color(1.0, 0.85, 0.4, 0.9))
+
+
+## A gun on the castle just fired. You want to hear it and see the flash, so you
+## know something is on its way up.
+func _on_flak_fired(pos: Vector3) -> void:
+	Sfx.play_at("flak", pos, -10.0)
+	_spawn_burst(pos, 8.0, 0.2, Color(1.0, 0.85, 0.42, 0.95))
 
 
 func _on_flak_burst(pos: Vector3) -> void:
@@ -478,12 +554,21 @@ func _process(delta: float) -> void:
 		_tracers[j].visible = false
 
 	# Flak shells in flight — seeing them coming is the whole point.
-	_sync_pool(_shells, GameState.shells.size(), 1.4, _mat_shell)
+	_sync_pool(_shells, GameState.shells.size(), 3.0, _mat_shell)
+	# Smoke behind each shell, so you can read where it came from and where it's
+	# going rather than just noticing the bang.
+	_trail_t -= delta
+	var puff := false
+	if _trail_t <= 0.0:
+		_trail_t = 0.06
+		puff = true
 	i = 0
 	for id in GameState.shells:
 		var s: Dictionary = GameState.shells[id]
 		_shells[i].visible = true
 		_shells[i].global_position = s.pos
+		if puff:
+			_spawn_burst(s.pos, 5.5, 0.9, Color(0.62, 0.62, 0.62, 0.45))
 		i += 1
 	for j in range(i, _shells.size()):
 		_shells[j].visible = false

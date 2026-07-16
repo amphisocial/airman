@@ -49,7 +49,8 @@ export function attachWs(server, sessionParser, lobby) {
       try { msg = JSON.parse(data.toString()); } catch { return; }
       switch (msg.t) {
         case 'queue':
-          console.log(`[airman] queue request from ${conn.user.name}`);
+          conn.speedMode = typeof msg.speed === 'string' ? msg.speed : undefined;
+          console.log(`[airman] queue request from ${conn.user.name} (speed: ${conn.speedMode || 'default'})`);
           if (!conn.room) lobby.enqueue(conn);
           break;
         case 'input':

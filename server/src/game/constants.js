@@ -70,5 +70,31 @@ export const MATCH_END_LINGER = 11;
 export const SPAWN_DIST = 900;
 export const SPAWN_ALT = 260;
 
+/**
+ * Speed presets. `k` scales every VELOCITY in the sim — aircraft, bullets, flak —
+ * while leaving the angular rates alone. Lead angles and turn geometry are
+ * therefore unchanged; the whole fight simply happens slower and tighter, which
+ * buys a human thinking time without altering the balance underneath.
+ *
+ * Slower settings also ease the opposition, because "too fast" and "too hard"
+ * are the same complaint.
+ */
+export const SPEED_PRESETS = {
+  slow:   { k: 0.68, botErr: [0.055, 0.030], flak: [12.0, 6.0] },
+  normal: { k: 1.00, botErr: [0.030, 0.025], flak: [9.0, 3.5] },
+  fast:   { k: 1.15, botErr: [0.022, 0.018], flak: [7.5, 2.8] },
+};
+export const DEFAULT_SPEED = 'normal';
+
+// Speed classes. `k` scales every speed in the flight model — the world stays
+// the same size, so a slower aircraft turns inside a smaller circle and the
+// island feels bigger. `botErr` handicaps the machine's gunnery to match.
+export const SPEED_MODES = {
+  low:    { k: 0.60, botErr: 2.4, label: 'Low' },
+  medium: { k: 0.78, botErr: 1.5, label: 'Medium' },
+  high:   { k: 1.00, botErr: 1.0, label: 'High' },
+};
+export const DEFAULT_MODE = 'medium';
+
 export const COLORS = ['#e8563f', '#3fa9e8'];
 export const CALLSIGNS = ['Vulture', 'Hornet', 'Shrike', 'Kestrel', 'Magpie'];

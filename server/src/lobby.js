@@ -1,5 +1,5 @@
 import { Room } from './room.js';
-import { DT, TICK_HZ, MAX_PLAYERS, CALLSIGNS } from './game/constants.js';
+import { DT, TICK_HZ, MAX_PLAYERS, CALLSIGNS, SPEED_MODES, DEFAULT_MODE } from './game/constants.js';
 import { config } from './config.js';
 
 export class Lobby {
@@ -51,10 +51,13 @@ export class Lobby {
     while (seats.length < MAX_PLAYERS) {
       seats.push({ name: names.pop() || 'Bandit', bot: true, conn: null });
     }
-    const room = new Room(seats, (r) => this.rooms.delete(r));
+    // Both aircraft must have identical performance, so one setting governs the
+    // whole match. Whoever queued first picks it.
+    const modeName = SPEED_MODES[conns[0]?.speedMode] ? conns[0].speedMode : DEFAULT_MODE;
+    const room = new Room(seats, (r) => this.rooms.delete(r), modeName);
     this.rooms.add(room);
     console.log(`[airman] room ${room.id} launched: ${seats.map((s) => s.name + (s.bot ? ' (bot)' : '')).join(' vs ')}`
-      + ` — ${humans} human, ${seats.length - humans} bot`);
+      + ` — ${humans} human, ${seats.length - humans} bot, speed ${modeName}`);
     return room;
   }
 

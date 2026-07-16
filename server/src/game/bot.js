@@ -109,7 +109,7 @@ export function botThink(m, p, dt) {
 
   // 5. Out of energy — unload, get the nose down, rebuild speed. Pulling harder
   //    when you're already slow just digs the hole deeper.
-  if (p.speed < CORNER_SPEED * 1.0) {
+  if (p.speed < CORNER_SPEED * m.k) {
     steerTo(p, add(p.pos, scale(v3(f.x, -0.55, f.z), 420)));
     p.in.throttle = 1;
     p.in.fire = false;
@@ -124,7 +124,7 @@ export function botThink(m, p, dt) {
   const range = len(toFoe);
 
   // Lead the shot: aim where they'll be, not where they are.
-  const tof = range / (BULLET_SPEED + p.speed);
+  const tof = range / (BULLET_SPEED * m.k + p.speed);
   let aim = add(foe.pos, scale(fwdOf(foe.q), foe.speed * tof));
 
   // Bots re-roll a small aim error every so often. Without it they're perfect
@@ -157,7 +157,7 @@ export function botThink(m, p, dt) {
 
   // Don't overrun them; back off the throttle when you're close aboard.
   // Sit near corner speed in a turning fight; firewall it when reaching.
-  p.in.throttle = range > 420 ? 1 : p.speed > CORNER_SPEED * 1.15 ? 0.55 : 0.9;
+  p.in.throttle = range > 420 ? 1 : p.speed > CORNER_SPEED * m.k * 1.15 ? 0.55 : 0.9;
 
   // Fire only when the rounds would actually arrive somewhere useful. A fixed
   // angular cone is the wrong test: five degrees is a hit at 100m and a clean
@@ -165,5 +165,5 @@ export function botThink(m, p, dt) {
   const aimDir = norm(sub(aim, p.pos));
   const off = Math.acos(clamp(dot(f, aimDir), -1, 1));
   const missDist = off * range;
-  p.in.fire = missDist < 13 * (p.botNerve || 1) && range < 720 && p.ammo > 0;
+  p.in.fire = missDist < 13 * (p.botNerve || 1) && range < 720 * m.k && p.ammo > 0;
 }

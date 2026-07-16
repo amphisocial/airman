@@ -3,13 +3,13 @@ import { botThink } from './game/bot.js';
 import { packTerrain } from './game/terrain.js';
 import {
   COLORS, MATCH_END_LINGER, MAX_PLAYERS, HMAP_N, WORLD, MAX_H,
-  MATCH_TIME, AMMO, PLAY_RADIUS,
+  MATCH_TIME, AMMO, PLAY_RADIUS, SPEED_MODES, DEFAULT_MODE,
 } from './game/constants.js';
 
 let nextRoomId = 1;
 
 export class Room {
-  constructor(seats, onClosed) {
+  constructor(seats, onClosed, modeName = DEFAULT_MODE) {
     this.id = 'm' + nextRoomId++;
     this.onClosed = onClosed;
     this.closed = false;
@@ -28,9 +28,11 @@ export class Room {
       if (s.conn) { s.conn.room = this; s.conn.pid = s.pid; }
     }
 
+    this.mode = SPEED_MODES[modeName] ? modeName : DEFAULT_MODE;
     this.match = new Match(
       this.seats.map((s) => ({ pid: s.pid, name: s.name, bot: s.bot, slot: s.slot })),
       (Math.random() * 0xffffffff) >>> 0,
+      this.mode,
     );
 
     const roster = this.seats.map((s) => ({ pid: s.pid, name: s.name, color: s.color, bot: s.bot }));
@@ -50,6 +52,8 @@ export class Room {
         matchTime: MATCH_TIME,
         ammo: AMMO,
         playRadius: PLAY_RADIUS,
+        speedScale: this.match.k,
+        speedMode: this.mode,
       });
     }
   }
